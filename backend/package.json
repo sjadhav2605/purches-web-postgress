@@ -1,0 +1,33 @@
+{
+  "name": "ddpl-procurement-backend",
+  "version": "1.0.0",
+  "description": "Production REST API for DDPL Procurement Portal",
+  "main": "src/server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "db:view": "node src/scripts/view_db.js",
+    "db:migrate": "node src/scripts/migrate_mysql_to_postgres.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
+    "bcryptjs": "^3.0.2",
+    "compression": "^1.8.2",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "ioredis": "^6.0.0",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "nodemailer": "^10.0.14",
+    "pg": "^8.23.1",
+    "twilio": "^6.1.2"
+  }
+}

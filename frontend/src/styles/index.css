@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   DDPL Procurement Portal — Clean Light Theme Design System
+   ========================================================================== */
+
+:root {
+  /* Brand & Primary Palette (DDPL Corporate Blue) */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-200: #bfdbfe;
+  --primary-500: #2563eb;
+  --primary-600: #1d4ed8;
+  --primary-700: #1e40af;
+  --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+
+  /* Neutrals & Surfaces (Clean Light Theme) */
+  --bg-main: #f8fafc;        /* Soft crisp off-white canvas */
+  --bg-canvas: #f8fafc;
+  --bg-surface: #ffffff;     /* Pure white for sidebar, navbar, cards, modals */
+  --bg-card: #ffffff;
+  --bg-card-subtle: #f8fafc; /* Very light slate-50 for secondary boxes */
+  --bg-card-hover: #f1f5f9;  /* Light slate on hover */
+  --border-color: #e2e8f0;   /* Clean slate-200 border */
+  --border-focus: #2563eb;
+
+  /* High-Contrast Readable Typography */
+  --text-primary: #0f172a;   /* Slate 900 - dark, crystal-clear readable text */
+  --text-main: #0f172a;
+  --text-secondary: #475569; /* Slate 600 - clean secondary text */
+  --text-muted: #64748b;     /* Slate 500 - subtle labels & icons */
+
+  /* Semantic Status Colors (Pastel background with high-contrast text) */
+  --success-bg: #ecfdf5;
+  --success-text: #047857;
+  --warning-bg: #fffbeb;
+  --warning-text: #b45309;
+  --info-bg: #eff6ff;
+  --info-text: #1d4ed8;
+  --danger-bg: #fef2f2;
+  --danger-text: #b91c1c;
+
+  /* Elevations & Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 0 15px rgba(37, 99, 235, 0.16);
+
+  /* Transitions */
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Custom Clean Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

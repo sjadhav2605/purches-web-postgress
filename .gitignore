@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Environment & Secrets (Never commit secrets to GitHub)
+.env
+backend/.env
+*.env.local
+
+# Production Build outputs
+frontend/dist/
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

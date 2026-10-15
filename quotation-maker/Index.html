@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDPL Quotation Maker</title>
+<!-- No remote fonts: system font stack only (faster first paint) -->
+<!-- SheetJS: reads .xlsx / .xls in the browser for "Import from Excel". Loaded with defer so it never blocks page render. -->
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root {
+    --primary: #2D5A50;
+    --primary-dark: #1E3D36;
+    --primary-light: #EBF4F1;
+    --primary-border: #BCD4CD;
+    --text-dark: #0F172A;
+    --text-heading: #1E293B;
+    --text-label: #334155;
+    --text-muted: #64748B;
+    --bg-main: #F1F5F4;
+    --bg-card: #FFFFFF;
+    --border-color: #CBD5E1;
+    --border-light: #E2E8F0;
+    --border-focus: #2D5A50;
+    --danger: #DC2626;
+    --danger-bg: #FEF2F2;
+    --danger-border: #FECACA;
+    --danger-hover: #B91C1C;
+    --radius: 8px;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+  body { background: var(--bg-main); color: var(--text-dark); font-size: 13.5px; line-height: 1.5; padding: 18px 0 60px; }
+  .wrapper { max-width: 1280px; margin: 0 auto; padding: 0 18px; }
+
+  /* App Top Header Bar */
+  .top-bar {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-radius: var(--radius);
+    padding: 16px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 14px;
+    color: #FFFFFF;
+  }
+  .top-bar h1 { font-size: 20px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.3px; }
+  .top-bar p { font-size: 12.5px; color: #D1E5E0; margin-top: 3px; font-weight: 400; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+    text-decoration: none;
+  }
+  .btn-white {
+    background: #FFFFFF;
+    color: var(--primary-dark);
+    font-weight: 700;
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-white:hover {
+    background: #F8FAFC;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: #FFFFFF;
+    border-color: var(--primary-dark);
+  }
+  .btn-primary:hover {
+    background: var(--primary-dark);
+  }
+  .btn-outline {
+    background: #FFFFFF;
+    color: var(--primary);
+    border: 1.5px solid var(--primary);
+  }
+  .btn-outline:hover {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+  }
+  .btn-subtle {
+    background: #F1F5F9;
+    color: var(--text-heading);
+    border: 1px solid var(--border-color);
+  }
+  .btn-subtle:hover {
+    background: #E2E8F0;
+    border-color: #94A3B8;
+  }
+  .btn-dup {
+    background: #FEF3C7;
+    color: #92400E;
+    border: 1.5px solid #F59E0B;
+    font-weight: 700;
+  }
+  .btn-dup:hover { background: #FDE68A; transform: translateY(-1px); }
+  .revbox.dup {
+    background: #FFFBEB;
+    border-color: #FCD34D;
+    border-left-color: #F59E0B;
+    color: #78350F;
+  }
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Section Headings (Bigger, prominent, perfect styling) */
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #EDF2F0;
+  }
+  .section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: -0.2px;
+  }
+  .badge-step {
+    background: var(--primary);
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 700;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(45,90,80,0.3);
+  }
+  .section-badge-right {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: var(--bg-main);
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border-light);
+  }
+
+  /* Form Grid & Sub-Headings / Labels */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px 18px;
+  }
+  .col-2 { grid-column: span 2; }
+  .col-full { grid-column: 1 / -1; }
+
+  label {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 5px;
+  }
+  .lbl-hint {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-left: 2px;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 8.5px 12px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-dark);
+    background: #FFFFFF;
+    transition: all 0.15s ease;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(45, 90, 80, 0.12);
+  }
+  textarea { resize: vertical; }
+
+  /* Client resolved preview box */
+  .client-preview {
+    background: var(--primary-light);
+    border: 1px solid var(--primary-border);
+    border-left: 4px solid var(--primary);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    color: var(--primary-dark);
+  }
+
+  /* Segmented Controls */
+  .seg-control {
+    display: inline-flex;
+    background: #E8F0ED;
+    padding: 3.5px;
+    border-radius: 6px;
+    gap: 3px;
+  }
+  .seg-control button {
+    border: none;
+    background: transparent;
+    padding: 7px 18px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-label);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .seg-control button.active {
+    background: var(--primary);
+    color: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+
+  /* Rate Master Search */
+  .search-box-wrapper {
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .search-box-wrapper input {
+    padding-left: 38px;
+    border-color: #94A3B8;
+    background: #FFFFFF;
+  }
+  .search-ico {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748B;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+  }
+  .search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 100;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.05);
+  }
+  .search-item {
+    padding: 9px 14px;
+    border-bottom: 1px solid #F1F5F9;
+    cursor: pointer;
+  }
+  .search-item:hover { background: var(--primary-light); }
+  .hit-row:hover { background: var(--primary-light); }
+  .search-item .cat-badge {
+    font-size: 10px;
+    font-weight: 700;
+    background: #E2E8F0;
+    color: var(--text-muted);
+    padding: 1px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+
+  /* Table Style */
+  .table-box {
+    border: 1.5px solid var(--border-color);
+    border-radius: 6px;
+    overflow-x: auto;
+    background: #FFFFFF;
+  }
+  table { width: 100%; border-collapse: collapse; background: #FFFFFF; }
+  th {
+    background: #EDF4F1;
+    color: var(--primary-dark);
+    font-weight: 700;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 11px 8px;
+    border-bottom: 2px solid var(--border-color);
+    border-right: 1px solid var(--border-light);
+    text-align: center;
+    white-space: nowrap;
+  }
+  th:last-child { border-right: none; }
+  td {
+    border-bottom: 1px solid var(--border-light);
+    border-right: 1px solid var(--border-light);
+    padding: 5px 6px;
+    vertical-align: middle;
+  }
+  td:last-child { border-right: none; }
+  tr:hover td { background: #F8FAFC; }
+
+  td input, td textarea {
+    border: 1px solid transparent;
+    padding: 6px 8px;
+    background: transparent;
+    font-size: 13px;
+    border-radius: 4px;
+  }
+  td input:focus, td textarea:focus {
+    border-color: var(--border-focus);
+    background: #FFFFFF;
+    box-shadow: 0 0 0 2px rgba(45, 90, 80, 0.12);
+  }
+  .text-center { text-align: center; }
+  .text-right { text-align: right; }
+  .font-bold { font-weight: 700; }
+
+  /* Red Modern Delete Button */
+  .btn-del {
+    background: var(--danger-bg);
+    border: 1px solid var(--danger-border);
+    color: var(--danger);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+    margin: 0 auto;
+  }
+  .btn-del svg {
+    stroke: var(--danger);
+    transition: transform 0.15s ease, stroke 0.15s ease;
+  }
+  .btn-del:hover {
+    background: var(--danger);
+    border-color: var(--danger);
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.25);
+  }
+  .btn-del:hover svg {
+    stroke: #FFFFFF;
+    transform: scale(1.1);
+  }
+
+  /* Summary / Totals Box */
+  .totals-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+  }
+  .totals-box {
+    width: 390px;
+    background: #F8FAFC;
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+  }
+  .tot-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-label);
+  }
+  .tot-line.grand {
+    border-top: 2px solid var(--border-color);
+    margin-top: 8px;
+    padding-top: 10px;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--primary-dark);
+  }
+  .words-display {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 8px;
+    text-align: right;
+    line-height: 1.4;
+  }
+
+  /* Action Bar */
+  .footer-actions {
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 16px 22px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Notification Banners */
+  .revbox {
+    background: var(--primary-light);
+    border: 1px solid var(--primary-border);
+    border-left: 4px solid var(--primary);
+    padding: 9px 14px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    color: var(--primary-dark);
+    margin-bottom: 14px;
+  }
+  .success-box {
+    background: #ECFDF5;
+    border: 1.5px solid #6EE7B7;
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-top: 14px;
+    color: #065F46;
+  }
+  .success-box a {
+    color: var(--primary);
+    font-weight: 700;
+    text-decoration: underline;
+    margin-right: 14px;
+  }
+
+  /* Spinner */
+  .spin {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-radius: 50%;
+    border-top-color: var(--primary);
+    animation: sp 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 4px;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+
+  /* BOQ Excel import: dialog, toast, drop hint */
+  .imp-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .imp-card { background: #FFFFFF; border-radius: var(--radius); box-shadow: 0 20px 40px rgba(0,0,0,0.25); width: 100%; max-width: 480px; padding: 20px 22px; }
+  .imp-card h3 { font-size: 16px; font-weight: 700; color: var(--primary-dark); margin-bottom: 10px; }
+  .imp-card p { font-size: 13px; color: var(--text-label); margin-bottom: 8px; }
+  .imp-sheet { display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-size: 13px; cursor: pointer; }
+  .imp-sheet input { width: auto; }
+  .imp-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: 16px; }
+  .imp-note { font-size: 12px; color: var(--text-muted); }
+  #toast { position: fixed; right: 18px; bottom: 18px; max-width: 420px; padding: 12px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: var(--shadow-md); z-index: 600; display: none; white-space: pre-line; }
+  #toast.ok { background: #ECFDF5; color: #065F46; border: 1.5px solid #6EE7B7; }
+  #toast.warn { background: #FFFBEB; color: #78350F; border: 1.5px solid #FCD34D; }
+  #toast.error { background: var(--danger-bg); color: var(--danger-hover); border: 1.5px solid var(--danger-border); }
+  #dropHint { position: fixed; inset: 10px; border: 3px dashed var(--primary); border-radius: 12px; background: rgba(235,244,241,0.85); z-index: 450; display: none; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: var(--primary-dark); pointer-events: none; }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <!-- Top Header Bar -->
+  <div class="top-bar">
+    <div>
+      <h1>DDPL Quotation Maker</h1>
+      <p id="companyLine">Decent Decor Private Limited · Loading company details…</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+      <button class="btn btn-dup" onclick="duplicateForNewCustomer()" title="Copy all line items into a brand-new [Main] quotation with a new number">📋 Duplicate for New Customer</button>
+      <button class="btn btn-white" onclick="newQuotation()">+ New Quotation</button>
+    </div>
+  </div>
+
+  <!-- Revision Status Box (When editing loaded quotes) -->
+  <div id="revState" class="revbox" style="display:none;"></div>
+
+  <!-- Search Saved Quotations -->
+  <div class="card" style="padding: 14px 20px;">
+    <div style="display:flex;gap:14px;align-items:center;">
+      <span style="color:var(--primary-dark);font-weight:700;font-size:12.5px;letter-spacing:0.3px;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        SEARCH SAVED QUOTATIONS
+      </span>
+      <div style="flex:1;position:relative;display:flex;align-items:center;">
+        <input id="qSearch" placeholder="Search by Quotation No, Client Name, or Subject / Project..." oninput="runSearch()" style="width:100%;padding-right:38px;">
+        <button id="btnToggleSearch" onclick="toggleSearchDropdown(event)" title="Expand / View Saved Quotations" style="position:absolute;right:6px;background:none;border:none;color:#64748B;cursor:pointer;padding:6px 8px;font-size:13px;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all 0.15s ease;">
+          <span id="arrowIco" style="display:inline-block;transition:transform 0.2s ease;">▼</span>
+        </button>
+      </div>
+    </div>
+    <div id="hits" style="max-height:220px;overflow-y:auto;margin-top:10px;border-top:1px solid var(--border-light);display:none;"></div>
+  </div>
+
+  <!-- Section 1: Quotation Details -->
+  <div class="card">
+    <div class="section-head">
+      <div class="section-title">
+        <span class="badge-step">1</span> Quotation Details
+      </div>
+      <div id="ourGst" class="section-badge-right">GST No: Loading…</div>
+    </div>
+
+    <div class="form-grid">
+      <div>
+        <label>Customer Key <span class="lbl-hint">(Quick Selector)</span></label>
+        <div style="position:relative;display:flex;align-items:center;">
+          <input id="custKey" placeholder="Click to choose or type customer..." autocomplete="off" onclick="showCustDropdown()" onfocus="showCustDropdown()" oninput="filterCustDropdown();" style="padding-right:34px;">
+          <button type="button" id="btnToggleCust" onclick="toggleCustDropdown(event)" title="Show All Customers" style="position:absolute;right:6px;background:none;border:none;color:#64748B;cursor:pointer;padding:6px;font-size:12px;border-radius:4px;display:flex;align-items:center;">
+            <span id="custArrowIco">▼</span>
+          </button>
+          <div id="custHits" class="search-dropdown" style="display:none;max-height:240px;overflow-y:auto;position:absolute;top:100%;left:0;right:0;z-index:150;"></div>
+        </div>
+        <datalist id="custList"></datalist>
+      </div>
+      <div>
+        <label>Quotation No</label>
+        <input id="quoteNo" style="font-weight:700;color:var(--primary-dark);">
+      </div>
+      <div>
+        <label>Quotation Date</label>
+        <input id="qDate" placeholder="dd.mm.yyyy">
+      </div>
+      <div>
+        <label>Status</label>
+        <select id="status">
+          <option>Draft</option>
+          <option>Sent</option>
+          <option>Approved</option>
+          <option>Revised</option>
+        </select>
+      </div>
+
+      <div class="col-2">
+        <label>Customer Name <span class="lbl-hint">(Prints under "To:")</span></label>
+        <input id="custName" placeholder="Customer Name as printed on quote">
+      </div>
+      <div class="col-2">
+        <label>Kind Attention <span class="lbl-hint">(Prints below Quotation No)</span></label>
+        <input id="attn" placeholder="e.g. Mr. Rajesh Sharma">
+      </div>
+
+      <div class="col-full">
+        <label>Customer Address <span class="lbl-hint">(Prints under name)</span></label>
+        <textarea id="custAddr" rows="2" placeholder="Full postal billing address"></textarea>
+      </div>
+
+      <div class="col-full client-preview" id="resolved">
+        Select a customer or type name/address above to preview print details.
+      </div>
+
+      <div class="col-full">
+        <label>Subject / Project Title <span class="lbl-hint">(SUB :-)</span></label>
+        <input id="subject" placeholder="e.g. Quotation for Civil work at FC 4 Gym Area Infosys Phase-II">
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: Layout & Format Options -->
+  <div class="card">
+    <div class="section-head">
+      <div class="section-title">
+        <span class="badge-step">2</span> Layout &amp; Format Options
+      </div>
+    </div>
+    <div style="display:flex;gap:36px;flex-wrap:wrap;">
+      <div>
+        <label>Client Table Format</label>
+        <div class="seg-control">
+          <button id="lINF" class="active" onclick="setLayout('INFOSYS')">Infosys Layout (with PO)</button>
+          <button id="lSTD" onclick="setLayout('STANDARD')">Standard Layout</button>
+        </div>
+      </div>
+      <div>
+        <label>Quotation Structure</label>
+        <div class="seg-control">
+          <button id="fA" class="active" onclick="setFormat('A')">Format A (All Items Inline)</button>
+          <button id="fB" onclick="setFormat('B')">Format B (1 Job Line + BOQ)</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="jobBox" style="display:none;margin-top:16px;" class="form-grid">
+      <div class="col-2">
+        <label>Single Job Line <span class="lbl-hint">(Printed on Quote Sheet)</span></label>
+        <input id="jobDesc" placeholder="BOQ for Civil work as per attached sheet">
+      </div>
+      <div>
+        <label>HSN/SAC for Job Line</label>
+        <input id="jobSac" value="9954">
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: Line Items & Rate Master -->
+  <div class="card">
+    <div class="section-head">
+      <div class="section-title">
+        <span class="badge-step">3</span> Line Items &amp; Rate Master
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="btn btn-outline" onclick="openExcelPicker()" title="Import BOQ items from an Excel file (.xlsx / .xls). You can also drag &amp; drop the file anywhere on this page.">📥 Import from Excel</button>
+        <input type="file" id="xlsInput" accept=".xlsx,.xls,.xlsm" style="display:none;" onchange="onExcelChosen(this)">
+        <button class="btn btn-subtle" onclick="addRow()">+ Add Blank Row</button>
+      </div>
+    </div>
+
+    <!-- Search rate master -->
+    <div class="search-box-wrapper">
+      <span class="search-ico">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </span>
+      <input id="search" placeholder="Search rate master — type any word from description, category, or code..." oninput="doSearch()" onfocus="doSearch()" autocomplete="off">
+      <div class="search-dropdown" id="results" style="display:none;"></div>
+    </div>
+
+    <!-- Line items table -->
+    <div class="table-box" id="lineItemsBox">
+      <table id="grid">
+        <thead><tr id="gridHead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Totals Calculation Box -->
+    <div class="totals-wrapper">
+      <div class="totals-box">
+        <div class="tot-line">
+          <span>Basic Amount:</span>
+          <span class="font-bold" id="basic">0.00</span>
+        </div>
+        <div class="tot-line">
+          <span>Round off (+/-):</span>
+          <input id="roundOff" value="0" class="text-right font-bold" style="width:90px;padding:4px 8px;" oninput="recalc()">
+        </div>
+        <div class="tot-line grand">
+          <span>GRAND TOTAL:</span>
+          <span id="grand">₹0.00</span>
+        </div>
+        <div class="words-display" id="words">Rupees Zero only.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4: Attachments (Optional) -->
+  <div class="card">
+    <div class="section-head">
+      <div class="section-title">
+        <span class="badge-step">4</span> Attachments (Optional)
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <input type="file" id="files" multiple accept="image/*,.pdf,.xlsx,.xls,.csv,.doc,.docx" style="max-width:340px;">
+      <button class="btn btn-subtle" onclick="uploadFiles()">Upload Selected Files</button>
+    </div>
+    <div id="attList" style="margin-top:12px;font-size:12.5px;color:var(--text-muted);">No files attached yet.</div>
+  </div>
+
+  <!-- Action Bar -->
+  <div class="footer-actions">
+    <button class="btn btn-primary" id="saveBtn" onclick="save()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+        <polyline points="7 3 7 8 15 8"></polyline>
+      </svg>
+      <span>Save &amp; Generate PDF + Excel</span>
+    </button>
+    <button class="btn btn-outline" onclick="preview('pdf')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+      </svg>
+      Download PDF Only
+    </button>
+    <button class="btn btn-outline" onclick="preview('excel')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="3" y1="9" x2="21" y2="9"></line>
+        <line x1="9" y1="21" x2="9" y2="9"></line>
+      </svg>
+      Download Excel Only
+    </button>
+    <button class="btn btn-dup" onclick="duplicateForNewCustomer()">📋 Duplicate for New Customer</button>
+    <span id="busy" style="font-size:13px;color:var(--primary);font-weight:600;margin-left:8px;"></span>
+  </div>
+
+  <div id="out"></div>
+
+  <div id="impModal" class="imp-overlay" style="display:none;"><div class="imp-card" id="impCard"></div></div>
+  <div id="toast"></div>
+  <div id="dropHint">Drop the BOQ Excel file to import its items</div>
+
+</div>
+
+<script>
+// #region agent log
+var DBG_BUF=[], DBG_NETFAIL=0;
+function dbg(h,loc,msg,data){
+  var entry={sessionId:'cf0aa1',hypothesisId:h,runId:'run1',location:loc,message:msg,data:data,timestamp:Date.now()};
+  DBG_BUF.push(entry);
+  try{ console.log('[DBG]',h,loc,msg,data); }catch(e){}
+  try{fetch('http://127.0.0.1:7760/ingest/89a3c682-6c58-42df-82d7-d7651a6d5d41',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'cf0aa1'},body:JSON.stringify(entry)}).catch(function(){DBG_NETFAIL++;dbgBadge();});}catch(e){DBG_NETFAIL++;}
+  dbgBadge();
+}
+function dbgBadge(){
+  var b=document.getElementById('dbgCopy');
+  if(!b && document.body){
+    b=document.createElement('button');
+    b.id='dbgCopy';
+    b.style.cssText='position:fixed;left:12px;bottom:12px;z-index:9999;background:#111;color:#fff;border:0;border-radius:6px;padding:8px 12px;font-size:12px;cursor:pointer;opacity:.9';
+    b.onclick=function(){
+      var txt=DBG_BUF.map(function(x){return JSON.stringify(x);}).join('\n');
+      var done=function(){ b.textContent='Copied '+DBG_BUF.length+' entries - paste in chat'; };
+      if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done,function(){ window.prompt('Copy this debug log:',txt); }); }
+      else window.prompt('Copy this debug log:',txt);
+    };
+    document.body.appendChild(b);
+  }
+  if(b) b.textContent='Copy debug log ('+DBG_BUF.length+' entries'+(DBG_NETFAIL?', '+DBG_NETFAIL+' not sent':'')+')';
+}
+// #endregion
+var BOOT=null, LINES=[], ATTACH=[], FORMAT='A', LAYOUT='INFOSYS', LOADED=null, NEXTREV='Main', HITS=[];
+var SAVED_QUOTES=[];
+var DUP_FROM=null;   // {quoteNo, revision, customerName} when the workspace is a duplicate
+
+// Bootstrap Application Data from Code.gs
+google.script.run.withSuccessHandler(init).withFailureHandler(err).getBootstrap();
+
+function init(b){
+  BOOT=b;
+  // #region agent log
+  dbg('A','Index.html:init','page loaded with instrumented build',{items:(b.items||[]).length,customers:(b.customers||[]).length,history:(b.history||[]).length});
+  // #endregion
+  if(b && b.history && b.history.length){
+    SAVED_QUOTES = b.history;
+  } else {
+    // Proactively fetch saved quotations from server in background
+    google.script.run.withSuccessHandler(function(list){
+      if(list && list.length){
+        SAVED_QUOTES = list;
+        var hitsEl = document.getElementById('hits');
+        if(hitsEl && hitsEl.style.display === 'block'){
+          filterAndShowHits();
+        }
+      }
+    }).searchQuotations('');
+  }
+  (b.items || []).forEach(function(it, idx){ it._idx = idx; });
+
+  document.getElementById('companyLine').textContent = b.company.name + ' · ' + b.company.address;
+  document.getElementById('ourGst').textContent = 'GST No: ' + (b.company.gstNo || '27AAECD7921Q1Z2');
+  document.getElementById('quoteNo').value = b.nextQuote;
+  document.getElementById('qDate').value = b.today;
+
+  var dl=document.getElementById('custList');
+  (b.customers||[]).forEach(function(c){
+    var o=document.createElement('option');
+    o.value=c.key;
+    dl.appendChild(o);
+  });
+
+  var ck=document.getElementById('custKey');
+  ck.addEventListener('change',onCustomerKey);
+  ck.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); onCustomerKey(); } });
+  document.getElementById('custName').addEventListener('change',onNameEdited);
+
+  setLayout('INFOSYS');
+  setFormat('A');
+  if(!LINES.length) addRow();
+
+  var custBox = document.getElementById('custHits');
+  if(custBox && custBox.style.display === 'block'){
+    filterCustDropdown();
+  }
+}
+
+function err(e){ busy(''); alert('Error: '+(e&&e.message?e.message:e)); }
+
+/* ---------- Search Saved Quotations (Instant Cache + Direct Fallback) ---------- */
+var tSearch = null;
+function runSearch(){
+  var val = (document.getElementById('qSearch').value || '').trim();
+  var el = document.getElementById('hits');
+  var ico = document.getElementById('arrowIco');
+  if(!val){
+    if(el.style.display === 'block'){
+      if(SAVED_QUOTES && SAVED_QUOTES.length > 0){
+        filterAndShowHits();
+      } else {
+        el.style.display = 'none';
+        if(ico) ico.textContent = '▼';
+      }
+    }
+    return;
+  }
+  el.style.display = 'block';
+  if(ico) ico.textContent = '▲';
+
+  if(SAVED_QUOTES && SAVED_QUOTES.length > 0){
+    filterAndShowHits();
+  } else {
+    clearTimeout(tSearch);
+    tSearch = setTimeout(function(){
+      google.script.run.withSuccessHandler(function(list){
+        SAVED_QUOTES = list || [];
+        filterAndShowHits();
+      }).withFailureHandler(err).searchQuotations(val);
+    }, 150);
+  }
+}
+
+function toggleSearchDropdown(e){
+  if(e && e.stopPropagation) e.stopPropagation();
+  var el = document.getElementById('hits');
+  var ico = document.getElementById('arrowIco');
+  if(el.style.display === 'block'){
+    el.style.display = 'none';
+    if(ico) ico.textContent = '▼';
+  } else {
+    el.style.display = 'block';
+    if(ico) ico.textContent = '▲';
+
+    if(SAVED_QUOTES && SAVED_QUOTES.length > 0){
+      filterAndShowHits();
+    } else {
+      el.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:12.5px;"><span class="spin"></span> Loading saved quotations…</div>';
+      var val = (document.getElementById('qSearch').value || '').trim();
+      google.script.run
+        .withSuccessHandler(function(list){
+          SAVED_QUOTES = list || [];
+          filterAndShowHits();
+        })
+        .withFailureHandler(function(e){
+          el.innerHTML = '<div style="padding:10px;color:var(--danger);font-size:12.5px;">Error loading quotations: '+esc(e&&e.message?e.message:e)+'</div>';
+        })
+        .searchQuotations(val);
+    }
+  }
+}
+
+function filterAndShowHits(){
+  var val = (document.getElementById('qSearch').value || '').trim().toLowerCase();
+  var filtered = SAVED_QUOTES || [];
+  if(val){
+    filtered = (SAVED_QUOTES || []).filter(function(r){
+      return ((r.quoteNo||'') + ' ' + (r.customerName||'') + ' ' + (r.subject||'') + ' ' + (r.revision||'')).toLowerCase().indexOf(val) > -1;
+    });
+  }
+  showHits(filtered.slice(0, 50));
+}
+
+function showHits(list){
+  HITS=list||[];
+  var el=document.getElementById('hits');
+  var ico=document.getElementById('arrowIco');
+  if(!HITS.length){
+    el.innerHTML='<div style="padding:10px;color:var(--text-muted);font-size:12.5px;">No saved quotations found in sheet.</div>';
+    el.style.display='block';
+    if(ico) ico.textContent='▲';
+    return;
+  }
+  el.innerHTML=HITS.map(function(q,i){
+    return '<div class="hit-row" data-i="'+i+'" style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px;cursor:pointer;">'+
+      '<div><b>'+esc(q.quoteNo)+'</b> <span style="background:#E2E8F0;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:700;">'+esc(q.revision)+'</span> &nbsp;'+
+      esc(q.customerName)+(q.subject?' — <span style="color:var(--text-muted)">'+esc(q.subject)+'</span>':'')+'</div>'+
+      '<div style="display:flex;gap:10px;align-items:center;">'+
+      '<b>₹'+esc(q.grand)+'</b>'+
+      '<span class="btn btn-subtle" style="padding:3px 10px;font-size:11.5px;">Open</span>'+
+      (q.pdfUrl?'<a href="'+q.pdfUrl+'" target="_blank" style="color:var(--primary);font-weight:700;">PDF</a>':'')+
+      (q.excelUrl?'<a href="'+q.excelUrl+'" target="_blank" style="color:var(--primary);font-weight:700;">XLSX</a>':'')+
+      '</div></div>';
+  }).join('');
+  el.style.display='block';
+  if(ico) ico.textContent='▲';
+}
+
+function openHit(i){
+  var q=HITS[i];
+  // #region agent log
+  dbg('C','Index.html:openHit','openHit called',{i:i,found:!!q,quoteNo:q&&q.quoteNo});
+  // #endregion
+  if(!q) return;
+  busy('Loading '+q.quoteNo+' '+q.revision+'…');
+  google.script.run.withSuccessHandler(applyLoaded).withFailureHandler(function(e){busy('');err(e);})
+    .loadQuotation(q.quoteNo,q.revision);
+}
+
+function applyLoaded(d){
+  busy('');
+  DUP_FROM=null;
+  LOADED={quoteNo:d.quoteNo,revision:(d.loadedFrom?d.loadedFrom.revision:d.revision),
+          customerKey:d.customerKey||'',customerName:d.customerName||''};
+  NEXTREV=d.nextRevision||'R1';
+  document.getElementById('quoteNo').value=d.quoteNo;
+  document.getElementById('qDate').value=d.date||(BOOT?BOOT.today:'');
+  document.getElementById('custKey').value=d.customerKey||'';
+  document.getElementById('custName').value=d.customerName||'';
+  document.getElementById('custAddr').value=d.customerAddress||'';
+  document.getElementById('attn').value=d.kindAttn||'';
+  document.getElementById('subject').value=d.subject||'';
+  document.getElementById('jobDesc').value=d.jobDescription||'';
+  document.getElementById('jobSac').value=d.jobSacHsn||'9954';
+  document.getElementById('roundOff').value=d.roundOff||0;
+  document.getElementById('status').value=d.status||'Revised';
+  ATTACH=d.attachments||[]; renderAtt();
+  LINES=(d.lines||[]).map(function(l){return {description:l.description,sacHsn:l.sacHsn,quantity:l.quantity,
+    uom:l.uom,rate:l.rate,poRef:l.poRef||'',poDate:l.poDate||''};});
+  setLayout(d.layout||'INFOSYS'); setFormat(d.format||'A');
+  if(!LINES.length) addRow(); else render();
+  showResolved();
+  showRevState();
+  document.getElementById('hits').style.display='none';
+  var ico=document.getElementById('arrowIco');
+  if(ico) ico.textContent='▼';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function showRevState(){
+  var el=document.getElementById('revState');
+  if(!el) return;
+  if(DUP_FROM){
+    el.className='revbox dup';
+    el.style.display='block';
+    var cn=document.getElementById('custName').value.trim();
+    el.innerHTML='📋 <b>Duplicate</b> of '+esc(DUP_FROM.quoteNo)+' ['+esc(DUP_FROM.revision)+']'+
+      (DUP_FROM.customerName?' ('+esc(DUP_FROM.customerName)+')':'')+
+      ' → new quotation <b>'+esc(document.getElementById('quoteNo').value)+'</b> <b>[Main]</b>'+
+      (cn?' for <b>'+esc(cn)+'</b>':' — <b>pick the new customer above</b>')+
+      '. All items are kept; the original quotation is not touched.';
+    return;
+  }
+  el.className='revbox';
+  if(!LOADED){ el.style.display='none'; return; }
+  el.style.display='block';
+  el.innerHTML='Editing <b>'+esc(LOADED.quoteNo)+'</b>, loaded from <b>'+esc(LOADED.revision)+
+    '</b>. Saving will create <b>'+esc(NEXTREV)+'</b> — revision '+esc(LOADED.revision)+' stays untouched. '+
+    'To send the same BOQ to another customer, use <b>📋 Duplicate for New Customer</b>.';
+}
+
+function hasItems(){
+  return LINES.some(function(l){ return String(l.description||'').trim(); });
+}
+
+/** Ask the server for a fresh quotation number (never a stale cached one). */
+function fetchNextQuote(cb){
+  google.script.run
+    .withSuccessHandler(function(no){ if(BOOT) BOOT.nextQuote=no; cb(no); })
+    .withFailureHandler(function(e){ busy(''); err(e); })
+    .getNextQuoteNumber();
+}
+
+function newQuotation(){
+  if(hasItems() && !confirm('Start a new quotation? Unsaved work will be cleared.')) return;
+  LINES=[]; ATTACH=[]; LOADED=null; NEXTREV='Main'; DUP_FROM=null;
+  ['custKey','custName','custAddr','attn','subject','jobDesc'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.value='';
+  });
+  document.getElementById('roundOff').value='0';
+  document.getElementById('jobSac').value='9954';
+  document.getElementById('status').value='Draft';
+  document.getElementById('quoteNo').value=BOOT?BOOT.nextQuote:'';
+  document.getElementById('qDate').value=BOOT?BOOT.today:'';
+  document.getElementById('out').innerHTML='';
+  renderAtt(); showResolved(); showRevState(); setLayout('INFOSYS'); setFormat('A');
+  addRow(true);
+
+  busy('Getting next quotation number…');
+  fetchNextQuote(function(no){ busy(''); document.getElementById('quoteNo').value=no; });
+
+  window.scrollTo({top: 0, behavior: 'smooth'});
+  setTimeout(function(){
+    var ck = document.getElementById('custKey');
+    if(ck) ck.focus();
+  }, 100);
+}
+
+/**
+ * 📋 Duplicate for New Customer
+ * Keeps every line item (description, qty, UOM, rate, PO refs), subject, format and round-off.
+ * Resets to a brand-new quotation number with Revision [Main], so saving creates an
+ * independent quotation — the original and its R1/R2 chain are never touched.
+ * @param {Object=} cust  optional customer (from the master) to apply immediately.
+ */
+function duplicateForNewCustomer(cust){
+  if(!hasItems()){
+    alert('There are no line items to duplicate. Load or build a quotation first.');
+    return;
+  }
+  var src={
+    quoteNo:(LOADED&&LOADED.quoteNo)||document.getElementById('quoteNo').value.trim(),
+    revision:(LOADED&&LOADED.revision)||'Main',
+    customerName:document.getElementById('custName').value.trim()
+  };
+  busy('Getting a new quotation number…');
+  fetchNextQuote(function(no){
+    busy('');
+    // Detach from the original quotation → saving creates a new [Main] entry
+    LOADED=null; NEXTREV='Main'; DUP_FROM=src;
+    document.getElementById('quoteNo').value=no;
+    document.getElementById('qDate').value=BOOT?BOOT.today:document.getElementById('qDate').value;
+    document.getElementById('status').value='Draft';
+
+    // Customer-specific data is cleared; attachments belong to the old customer's quote
+    ['custKey','custName','custAddr','attn'].forEach(function(id){ document.getElementById(id).value=''; });
+    ATTACH=[]; renderAtt();
+    document.getElementById('out').innerHTML='';
+
+    // Line items stay exactly as they are
+    LINES=LINES.filter(function(l){ return String(l.description||'').trim(); });
+    render();
+
+    if(cust) applyCustomerFields(cust);
+    showResolved();
+    showRevState();
+    window.scrollTo({top:0,behavior:'smooth'});
+    if(!cust){
+      setTimeout(function(){
+        var ck=document.getElementById('custKey');
+        if(ck){ ck.focus(); filterCustDropdown(); }
+      },150);
+    }
+  });
+}
+
+/* ---------- Customer Master Dropdown & Quick Selector ---------- */
+function showCustDropdown(){
+  filterCustDropdown();
+}
+
+function toggleCustDropdown(e){
+  if(e && e.stopPropagation) e.stopPropagation();
+  var box = document.getElementById('custHits');
+  var ico = document.getElementById('custArrowIco');
+  if(box.style.display === 'block'){
+    box.style.display = 'none';
+    if(ico) ico.textContent = '▼';
+  } else {
+    filterCustDropdown();
+  }
+}
+
+function filterCustDropdown(){
+  var box = document.getElementById('custHits');
+  var ico = document.getElementById('custArrowIco');
+  if(!BOOT){
+    box.innerHTML = '<div style="padding:10px 14px;color:var(--text-muted);font-size:12.5px;"><span class="spin"></span> Loading customer master…</div>';
+    box.style.display = 'block';
+    if(ico) ico.textContent = '▲';
+    return;
+  }
+  var customers = (BOOT && BOOT.customers) ? BOOT.customers : [];
+  
+  if(!customers.length){
+    box.innerHTML = '<div style="padding:10px 14px;color:var(--text-muted);font-size:12.5px;">No customers found in Customer Master sheet.</div>';
+    box.style.display = 'block';
+    if(ico) ico.textContent = '▲';
+    return;
+  }
+
+  var q = (document.getElementById('custKey').value || '').trim().toLowerCase();
+  var list = customers;
+  if(q){
+    list = customers.filter(function(c){
+      return (String(c.key||'') + ' ' + String(c.name||'') + ' ' + String(c.address||'')).toLowerCase().indexOf(q) > -1;
+    });
+  }
+
+  if(!list.length){
+    box.innerHTML = '<div style="padding:10px 14px;color:var(--text-muted);font-size:12.5px;">No matching customer for "'+esc(q)+'".</div>';
+    box.style.display = 'block';
+    if(ico) ico.textContent = '▲';
+    return;
+  }
+
+  box.innerHTML = list.map(function(c){
+    var idx = customers.indexOf(c);
+    return '<div class="search-item" onclick="pickCustomer('+idx+')" style="padding:8px 12px;border-bottom:1px solid #F1F5F9;cursor:pointer;">'+
+      '<div style="font-weight:700;color:var(--primary-dark);font-size:13px;">'+esc(c.name)+'</div>'+
+      '<div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">'+
+      '<span style="background:#E2E8F0;padding:1px 6px;border-radius:3px;font-weight:600;font-size:10.5px;">'+esc(c.key)+'</span> '+
+      (c.address ? ' · ' + esc(c.address.slice(0, 50)) + (c.address.length > 50 ? '…' : '') : '') +
+      '</div></div>';
+  }).join('');
+  box.style.display = 'block';
+  if(ico) ico.textContent = '▲';
+}
+
+function closeCustDropdown(){
+  var box = document.getElementById('custHits');
+  if(box) box.style.display = 'none';
+  var ico = document.getElementById('custArrowIco');
+  if(ico) ico.textContent = '▼';
+}
+
+function pickCustomer(idx){
+  var customers = (BOOT && BOOT.customers) ? BOOT.customers : [];
+  var c = customers[idx];
+  if(!c) return;
+  closeCustDropdown();
+  selectCustomer(c);
+}
+
+function isLoadedCustomer(c){
+  if(!LOADED) return true;
+  var k=String(c.key||'').toLowerCase(), nm=String(c.name||'').toLowerCase();
+  var lk=String(LOADED.customerKey||'').toLowerCase(), ln=String(LOADED.customerName||'').toLowerCase();
+  return (lk && k===lk) || (ln && nm===ln);
+}
+
+/** Single entry point for choosing a customer (dropdown click or exact typed match). */
+function selectCustomer(c){
+  if(LOADED && hasItems() && !isLoadedCustomer(c)){
+    if(confirm('Do you want to duplicate this quotation for '+c.name+' as a new [Main] quote?')){
+      duplicateForNewCustomer(c);
+    } else {
+      // Keep editing the loaded quotation with its original customer
+      document.getElementById('custKey').value = LOADED.customerKey || '';
+    }
+    return;
+  }
+  applyCustomerFields(c);
+}
+
+function applyCustomerFields(c){
+  document.getElementById('custKey').value = c.key;
+  document.getElementById('custName').value = c.name;
+  document.getElementById('custAddr').value = c.address || '';
+  document.getElementById('attn').value = c.attn || '';
+  applyCustomerContext();
+  showRevState();
+}
+
+function findCustomer(key){
+  var k=String(key||'').trim().toLowerCase();
+  if(!k||!BOOT) return null;
+  var hit=(BOOT.customers||[]).filter(function(c){
+    return c.key.toLowerCase()===k || c.name.toLowerCase()===k;
+  })[0];
+  if(hit) return hit;
+  return (BOOT.customers||[]).filter(function(c){
+    return c.key.toLowerCase().indexOf(k)===0 || c.name.toLowerCase().indexOf(k)===0;
+  })[0]||null;
+}
+
+function onCustomerKey(){
+  var val = document.getElementById('custKey').value.trim();
+  if(!val) return;
+  var c = findCustomer(val);
+  if(c && (val.toLowerCase() === c.key.toLowerCase() || val.toLowerCase() === c.name.toLowerCase())){
+    // Ignore if this customer is already applied
+    if(document.getElementById('custName').value.trim().toLowerCase() === c.name.toLowerCase()) return;
+    closeCustDropdown();
+    selectCustomer(c);
+  }
+}
+
+function onNameEdited(){ applyCustomerContext(); showRevState(); }
+
+function applyCustomerContext(){
+  var n=document.getElementById('custName').value.trim().toLowerCase();
+  if(n && BOOT) setLayout((BOOT.infosysTags||['infosys']).some(function(t){return n.indexOf(t)===0;})?'INFOSYS':'STANDARD');
+  showResolved();
+  doSearch();
+}
+
+function showResolved(){
+  var name=document.getElementById('custName').value.trim();
+  var addr=document.getElementById('custAddr').value.trim();
+  var el=document.getElementById('resolved');
+  if(!name){
+    el.innerHTML='Select a customer or type name/address above to preview print details.';
+    return;
+  }
+  el.innerHTML='<span style="font-weight:700;color:var(--primary-dark)">Quotation Header Preview:</span> <b>'+esc(name)+'</b>'+
+    (addr?'<div style="color:var(--text-muted);font-size:12px;margin-top:2px;">'+esc(addr).replace(/\n/g,', ')+'</div>':'');
+}
+
+function setLayout(l){
+  LAYOUT=(String(l).toUpperCase()==='STANDARD')?'STANDARD':'INFOSYS';
+  document.getElementById('lINF').className=(LAYOUT==='INFOSYS')?'active':'';
+  document.getElementById('lSTD').className=(LAYOUT==='STANDARD')?'active':'';
+  render();
+}
+
+function setFormat(f){
+  FORMAT=(f==='B')?'B':'A';
+  document.getElementById('fA').className=(FORMAT==='A')?'active':'';
+  document.getElementById('fB').className=(FORMAT==='B')?'active':'';
+  document.getElementById('jobBox').style.display=(FORMAT==='B')?'grid':'none';
+  var s=document.getElementById('subject').value.trim(), j=document.getElementById('jobDesc');
+  if(FORMAT==='B' && !j.value.trim() && s) j.value='BOQ for '+s.replace(/^Quotation for\s*/i,'');
+}
+
+/* ---------- Rate Master Search ---------- */
+function doSearch(){
+  if(!BOOT || !BOOT.items) return;
+  var q=document.getElementById('search').value.trim().toLowerCase(), box=document.getElementById('results');
+  if(!q){ box.style.display='none'; box.innerHTML=''; return; }
+
+  var custName=document.getElementById('custName').value.trim().toLowerCase();
+  var matches=BOOT.items.filter(function(it){
+    var desc=String(it.description||'').toLowerCase();
+    var cat=String(it.category||'').toLowerCase();
+    var hsn=String(it.sacHsn||'').toLowerCase();
+    var comp=String(it.company||'').toLowerCase();
+    var po=String(it.poRef||'').toLowerCase();
+    return desc.indexOf(q)>-1 || cat.indexOf(q)>-1 || hsn.indexOf(q)>-1 || comp.indexOf(q)>-1 || po.indexOf(q)>-1;
+  });
+
+  matches.sort(function(a,b){
+    var aM=(a.company && custName.indexOf(a.company.toLowerCase())>-1)?1:0;
+    var bM=(b.company && custName.indexOf(b.company.toLowerCase())>-1)?1:0;
+    return bM - aM;
+  });
+
+  var pool=matches.slice(0,35);
+  if(!pool.length){
+    box.innerHTML='<div style="padding:10px 14px;color:var(--text-muted);font-size:12.5px;">No matching rate items.</div>';
+    box.style.display='block';
+    return;
+  }
+
+  box.innerHTML=pool.map(function(it){
+    var idx=(it._idx!==undefined)?it._idx:BOOT.items.indexOf(it);
+    return '<div class="search-item" onclick="pick('+idx+')">'+
+      '<span class="cat-badge">'+esc(it.category)+(it.company?' · '+esc(it.company):'')+'</span><br>'+
+      '<b>'+esc(it.description)+'</b>'+
+      '<div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">'+
+      esc(it.uom)+' · ₹'+it.rate+(it.poRef?' · PO: '+esc(it.poRef):'')+'</div></div>';
+  }).join('');
+  box.style.display='block';
+}
+
+function pick(i){
+  if(!BOOT || !BOOT.items || !BOOT.items[i]) return;
+  var it=BOOT.items[i];
+  var newItem={
+    description:it.description||'',
+    sacHsn:it.sacHsn||'9954',
+    quantity:1,
+    uom:it.uom||'',
+    rate:n(it.rate),
+    poRef:it.poRef||'',
+    poDate:it.poDate||''
+  };
+
+  var emptyIdx=-1;
+  for(var k=0; k<LINES.length; k++){
+    if(!String(LINES[k].description||'').trim()){ emptyIdx=k; break; }
+  }
+  if(emptyIdx>-1) LINES[emptyIdx]=newItem;
+  else LINES.push(newItem);
+
+  document.getElementById('search').value='';
+  document.getElementById('results').style.display='none';
+  render();
+}
+
+function addRow(dontFocus){
+  LINES.push({description:'',sacHsn:'9954',quantity:1,uom:'',rate:0,poRef:'',poDate:''});
+  render();
+  if(!dontFocus){
+    setTimeout(function(){
+      var tas=document.querySelectorAll('#tbody textarea');
+      if(tas.length) tas[tas.length-1].focus();
+    },50);
+  }
+}
+
+function del(i){
+  LINES.splice(i,1);
+  if(!LINES.length) addRow();
+  else render();
+}
+
+/* ---------- Grid Render (Rate/Unit before PO Ref. No. & PO Date) ---------- */
+function render(){
+  var INF=(LAYOUT==='INFOSYS');
+  document.getElementById('gridHead').innerHTML=
+    '<th style="width:42px">Sr.</th>'+
+    '<th>Description of Work / Goods</th>'+
+    '<th style="width:85px">'+(INF?'HSN/SAC':'SAC No.')+'</th>'+
+    '<th style="width:65px">Qty</th>'+
+    '<th style="width:65px">UOM</th>'+
+    '<th style="width:95px">Rate/Unit</th>'+
+    '<th style="width:115px">Total Amount</th>'+
+    (INF?'<th style="width:125px">PO Ref No</th><th style="width:115px">PO Date</th>':'')+
+    '<th style="width:44px"></th>';
+
+  document.getElementById('tbody').innerHTML=LINES.map(function(l,i){
+    return '<tr>'+
+      '<td class="text-center font-bold" style="color:var(--text-muted);padding-top:10px;">'+(i+1)+'</td>'+
+      '<td><textarea rows="2" placeholder="Item description" oninput="upd('+i+',\'description\',this.value)">'+esc(l.description)+'</textarea></td>'+
+      '<td><input value="'+esc(l.sacHsn)+'" class="text-center" oninput="upd('+i+',\'sacHsn\',this.value)"></td>'+
+      '<td><input type="number" step="any" value="'+l.quantity+'" class="text-right" oninput="upd('+i+',\'quantity\',this.value)"></td>'+
+      '<td><input value="'+esc(l.uom)+'" class="text-center" oninput="upd('+i+',\'uom\',this.value)"></td>'+
+      '<td><input type="number" step="any" value="'+l.rate+'" class="text-right" data-rate="'+i+'" oninput="upd('+i+',\'rate\',this.value)"></td>'+
+      '<td class="text-right font-bold" style="color:var(--primary);padding-top:10px;" id="amt'+i+'">'+money(n(l.quantity)*n(l.rate))+'</td>'+
+      (INF?'<td><input value="'+esc(l.poRef)+'" class="text-center" placeholder="PO Ref" oninput="upd('+i+',\'poRef\',this.value)"></td>'+
+           '<td><input value="'+esc(l.poDate)+'" class="text-center" placeholder="dd.mm.yyyy" oninput="upd('+i+',\'poDate\',this.value)"></td>':'')+
+      '<td class="text-center"><button class="btn-del" onclick="del('+i+')" title="Remove Row">'+
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">'+
+          '<polyline points="3 6 5 6 21 6"></polyline>'+
+          '<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>'+
+          '<line x1="10" y1="11" x2="10" y2="17"></line>'+
+          '<line x1="14" y1="11" x2="14" y2="17"></line>'+
+        '</svg>'+
+      '</button></td></tr>';
+  }).join('');
+  recalc();
+}
+
+function upd(i,k,v){
+  if(!LINES[i]) return;
+  LINES[i][k]=v;
+
+  // Auto-fill details if description matches an existing rate master item
+  if(k==='description' && BOOT && BOOT.items && v){
+    var vClean=String(v).trim().toLowerCase();
+    var match=BOOT.items.filter(function(it){
+      return String(it.description||'').trim().toLowerCase()===vClean;
+    })[0];
+    if(match){
+      if(match.sacHsn) LINES[i].sacHsn=match.sacHsn;
+      if(match.uom) LINES[i].uom=match.uom;
+      if(match.rate) LINES[i].rate=match.rate;
+      if(match.poRef) LINES[i].poRef=match.poRef;
+      if(match.poDate) LINES[i].poDate=match.poDate;
+      render();
+      var ta=document.querySelectorAll('#tbody textarea')[i];
+      if(ta){ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+      return;
+    }
+  }
+
+  if(k==='quantity'||k==='rate'){
+    var amtEl=document.getElementById('amt'+i);
+    if(amtEl) amtEl.textContent=money(n(LINES[i].quantity)*n(LINES[i].rate));
+    recalc();
+  }
+}
+
+function recalc(){
+  var b=0; 
+  LINES.forEach(function(l){ b+=n(l.quantity)*n(l.rate); });
+  b=Math.round(b*100)/100;
+  var g=Math.round((b+n(document.getElementById('roundOff').value))*100)/100;
+  document.getElementById('basic').textContent=money(b);
+  document.getElementById('grand').textContent='₹'+money(g);
+  document.getElementById('words').textContent=words(g);
+}
+
+/* ---------- Attachments ---------- */
+function uploadFiles(){
+  var input=document.getElementById('files');
+  if(!input.files.length){ alert('Please select a file first.'); return; }
+  var q=document.getElementById('quoteNo').value, pending=input.files.length;
+  busy('Uploading file(s)…');
+  Array.prototype.forEach.call(input.files,function(f){
+    var r=new FileReader();
+    r.onload=function(){
+      google.script.run
+        .withSuccessHandler(function(res){
+          ATTACH.push(res);
+          pending--;
+          if(!pending){ busy(''); input.value=''; }
+          renderAtt();
+        })
+        .withFailureHandler(function(e){ pending--; busy(''); err(e); })
+        .uploadAttachment({fileName:f.name,mimeType:f.type,quoteNo:q,dataB64:r.result.split(',')[1]});
+    };
+    r.readAsDataURL(f);
+  });
+}
+
+function renderAtt(){
+  var el=document.getElementById('attList');
+  el.innerHTML=ATTACH.length
+    ? '<b>Attached Files:</b> &nbsp;'+ATTACH.map(function(a,i){
+        return '<span style="display:inline-flex;align-items:center;background:#E2E8F0;padding:3px 10px;border-radius:14px;margin:3px 4px;font-size:12px;">'+
+               '<a href="'+a.url+'" target="_blank" style="color:var(--primary);text-decoration:none;font-weight:600;">📎 '+esc(a.name)+'</a>'+
+               '<button class="btn-del" style="width:20px;height:20px;margin-left:6px;border-radius:50%;padding:0;" onclick="delAtt('+i+')" title="Remove file">×</button></span>';
+      }).join('')
+    : 'No files attached yet.';
+}
+
+function delAtt(i){
+  var a=ATTACH[i];
+  if(!confirm('Remove "'+a.name+'"?')) return;
+  ATTACH.splice(i,1); renderAtt();
+  if(a.id) google.script.run.deleteAttachment(a.id);
+}
+
+/* ---------- Save & Export ---------- */
+function payload(){
+  var validLines = LINES.filter(function(l){ return String(l.description||'').trim(); });
+  // #region agent log
+  dbg('A','Index.html:payload','LINES vs validLines',{
+    total:LINES.length, valid:validLines.length,
+    domRows:document.querySelectorAll('#tbody tr').length,
+    lines:LINES.map(function(l,i){
+      var m=BOOT&&BOOT.items?BOOT.items.some(function(it){return String(it.description||'').trim().toLowerCase()===String(l.description||'').trim().toLowerCase();}):null;
+      return {i:i,descLen:String(l.description||'').length,hsn:l.sacHsn,qty:l.quantity,uom:l.uom,rate:l.rate,inRateMaster:m};
+    })
+  });
+  // #endregion
+  return {
+    quoteNo:document.getElementById('quoteNo').value.trim(),
+    date:document.getElementById('qDate').value.trim(),
+    layout:LAYOUT, format:FORMAT,
+    customerKey:document.getElementById('custKey').value.trim(),
+    customerName:document.getElementById('custName').value.trim(),
+    customerAddress:document.getElementById('custAddr').value.trim(),
+    kindAttn:document.getElementById('attn').value.trim(),
+    subject:document.getElementById('subject').value.trim(),
+    jobDescription:document.getElementById('jobDesc').value.trim(),
+    jobSacHsn:document.getElementById('jobSac').value.trim(),
+    roundOff:n(document.getElementById('roundOff').value),
+    lines:validLines,
+    attachments:ATTACH,
+    status:document.getElementById('status').value,
+    revision:LOADED?NEXTREV:'Main',
+    loadedFrom:LOADED?{quoteNo:LOADED.quoteNo,revision:LOADED.revision}:null
+  };
+}
+
+function validate(){
+  var p=payload();
+  if(!p.customerName){ alert('Please select or enter Customer Name.'); return null; }
+  if(!p.lines.length){ alert('Please add at least one line item.'); return null; }
+  return p;
+}
+
+function save(){
+  var p=validate(); if(!p) return;
+  busy('Saving and building PDF + Excel…'); 
+  document.getElementById('saveBtn').disabled=true;
+  var _t0=Date.now();
+  google.script.run.withSuccessHandler(function(r){
+    // #region agent log
+    dbg('B','Index.html:save-ok','saveQuotation round trip',{roundTripMs:Date.now()-_t0, sentLines:p.lines.length, quoteNo:r.quoteNo, revision:r.revision, backendDebug:r.debug||null});
+    // #endregion
+    // #region agent log
+    google.script.run.withSuccessHandler(function(d){
+      dbg('A','Index.html:save-verify','loadQuotation after save (what the sheet stored)',{
+        sent:p.lines.length, stored:(d.lines||[]).length,
+        storedLines:(d.lines||[]).map(function(l,i){return {i:i,descLen:String(l.description||'').length,hsn:l.sacHsn,qty:l.quantity,uom:l.uom,rate:l.rate,amount:l.amount};})
+      });
+    }).withFailureHandler(function(e){
+      dbg('A','Index.html:save-verify-fail','loadQuotation failed',{error:String(e&&e.message||e)});
+    }).loadQuotation(r.quoteNo,r.revision);
+    // #endregion
+    busy(''); 
+    document.getElementById('saveBtn').disabled=false;
+    document.getElementById('out').innerHTML=
+      '<div class="success-box">'+
+      '<div style="font-size:15px;font-weight:700;margin-bottom:6px;">✅ Quotation Saved — '+esc(r.quoteNo)+' ['+esc(r.revision)+']</div>'+
+      '<div style="font-size:13px;">Basic: <b>₹'+money(r.basic)+'</b> &nbsp;·&nbsp; Grand Total: <b>₹'+money(r.grand)+'</b> &nbsp;·&nbsp; GST 18% Applicable (as per note)</div>'+
+      '<div style="margin-top:10px;">'+
+      '<a href="'+r.pdfUrl+'" target="_blank">📄 Open PDF Document</a>'+
+      '<a href="'+r.excelUrl+'" target="_blank">📊 Open Excel (.xlsx)</a>'+
+      '</div></div>';
+    if(r.renumbered){
+      alert('Quotation number '+r.requestedQuoteNo+' was already used by another quotation, '+
+            'so this one was saved as a new quotation: '+r.quoteNo+' [Main].');
+    }
+    document.getElementById('quoteNo').value=r.quoteNo;
+    BOOT.nextQuote=r.nextQuote;
+    LOADED={quoteNo:r.quoteNo,revision:r.revision,
+            customerKey:document.getElementById('custKey').value.trim(),
+            customerName:document.getElementById('custName').value.trim()};
+    NEXTREV=r.nextRevision;
+    DUP_FROM=null;
+    if(r.history && r.history.length){
+      SAVED_QUOTES = r.history;
+    } else {
+      SAVED_QUOTES.unshift({
+        timestamp: new Date().toISOString(),
+        quoteNo: r.quoteNo,
+        revision: r.revision,
+        layout: LAYOUT,
+        format: FORMAT,
+        customerName: document.getElementById('custName').value.trim(),
+        subject: document.getElementById('subject').value.trim(),
+        grand: money(r.grand),
+        pdfUrl: r.pdfUrl,
+        excelUrl: r.excelUrl,
+        status: document.getElementById('status').value || 'Draft'
+      });
+    }
+    showRevState();
+    window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+  }).withFailureHandler(function(e){
+    // #region agent log
+    dbg('B','Index.html:save-fail','saveQuotation failed',{roundTripMs:Date.now()-_t0,error:String(e&&e.message||e)});
+    // #endregion
+    busy('');
+    document.getElementById('saveBtn').disabled=false;
+    err(e);
+  }).saveQuotation(p);
+}
+
+function preview(kind){
+  var p=validate(); if(!p) return;
+  busy('Generating '+kind.toUpperCase()+'…');
+  var _pt0=Date.now();
+  var done=function(url){
+    // #region agent log
+    dbg('B','Index.html:preview-ok','preview round trip',{kind:kind,roundTripMs:Date.now()-_pt0,lines:p.lines.length});
+    // #endregion
+    busy('');
+    document.getElementById('out').innerHTML=
+      '<div class="success-box">Generated Preview: <a href="'+url+'" target="_blank">Open '+kind.toUpperCase()+'</a></div>';
+  };
+  var r=google.script.run.withSuccessHandler(done).withFailureHandler(function(e){
+    // #region agent log
+    dbg('B','Index.html:preview-fail','preview failed',{kind:kind,roundTripMs:Date.now()-_pt0,error:String(e&&e.message||e)});
+    // #endregion
+    busy('');err(e);});
+  if(kind==='pdf') r.buildPreviewPdf(p); else r.buildPreviewExcel(p);
+}
+
+function busy(t){
+  var el=document.getElementById('busy');
+  el.innerHTML=t ? '<span class="spin"></span> ' + t : '';
+}
+
+/* ---------- Number & Currency Helpers ---------- */
+function n(v){var x=parseFloat(String(v==null?'':v).replace(/,/g,''));return isNaN(x)?0:x;}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function money(v){
+  v=n(v); var neg=v<0; v=Math.abs(v);
+  var s=v.toFixed(2).split('.'), i=s[0], last3=i.slice(-3), rest=i.slice(0,-3);
+  if(rest) last3=rest.replace(/\B(?=(\d{2})+(?!\d))/g,',')+','+last3;
+  return (neg?'-':'')+last3+(s[1]==='00'?'':'.'+s[1]);
+}
+
+function words(amount){
+  var nVal = Math.round(n(amount));
+  if (!nVal) return 'Rupees Zero only.';
+  var o = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven',
+    'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+  var t = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+  function two(x) { return x < 20 ? o[x] : t[Math.floor(x / 10)] + (x % 10 ? ' ' + o[x % 10] : ''); }
+  function three(x) {
+    var h = Math.floor(x / 100), r = x % 100, s = '';
+    if (h) s += o[h] + ' hundred';
+    if (r) s += (s ? ' and ' : '') + two(r);
+    return s;
+  }
+  var parts = [], cr = Math.floor(nVal / 10000000); nVal %= 10000000;
+  var la = Math.floor(nVal / 100000); nVal %= 100000;
+  var th = Math.floor(nVal / 1000); nVal %= 1000;
+  if (cr) parts.push(three(cr) + ' crore');
+  if (la) parts.push(three(la) + ' lakh');
+  if (th) parts.push(three(th) + ' thousand');
+  if (nVal) parts.push((parts.length ? 'and ' : '') + three(nVal));
+  var s = parts.join(' ');
+  return 'Rupees ' + s.charAt(0).toUpperCase() + s.slice(1) + ' only.';
+}
+
+/* ---------- BOQ Excel parser (pure, no DOM) ---------- */
+function impNorm(v){ return String(v==null?'':v).replace(/\s+/g,' ').trim().toLowerCase(); }
+
+/** Finds the header row and maps its columns. Returns null if no header is found. */
+function impFindHeader(rows){
+  var limit=Math.min(rows.length,40);
+  for(var r=0;r<limit;r++){
+    var cells=(rows[r]||[]).map(impNorm);
+    var desc=-1, unit=-1, qty=-1, rate=-1, amt=-1, sr=-1;
+    cells.forEach(function(c,i){
+      if(!c) return;
+      if(desc<0 && (c.indexOf('boq item')>-1 || c.indexOf('description')>-1)) desc=i;
+      if(unit<0 && (/\buom\b/.test(c) || (/\bunits?\b/.test(c) && c.indexOf('rate')<0 && c.indexOf('amount')<0))) unit=i;
+      if(qty<0 && (/\bqty\b/.test(c) || c.indexOf('quantity')>-1)) qty=i;
+      if(rate<0 && c.indexOf('rate')>-1) rate=i;
+      if(amt<0 && c.indexOf('amount')>-1) amt=i;
+      if(sr<0 && /^(sr|sl|s)\.?\s*(no|nos|number)?\.?$|^(sr|sl|s)\.?\s*no\b|^item\s*no/.test(c)) sr=i;
+    });
+    if(desc>-1 && unit>-1 && qty>-1) return {row:r, sr:sr, desc:desc, unit:unit, qty:qty, rate:rate, amount:amt};
+  }
+  return null;
+}
+
+/** Nos → Nos, Sqft → FT2, everything else unchanged. */
+function impMapUnit(u){
+  var s=String(u==null?'':u).trim();
+  var k=s.toLowerCase().replace(/[\s.]/g,'');
+  if(k==='nos') return 'Nos';
+  if(k==='sqft') return 'FT2';
+  return s;
+}
+
+function impNum(v){
+  if(v===null || v===undefined || String(v).trim()==='') return null;
+  var x=parseFloat(String(v).replace(/,/g,''));
+  return isNaN(x)?null:x;
+}
+
+/**
+ * Parses the selected sheets of a SheetJS workbook into line items that match the
+ * existing LINES structure. opts: { sacHsn: '', rateLookup: function(desc){ return rate|null } }
+ */
+function parseBoqSheets(wb, names, opts){
+  opts=opts||{};
+  var out={items:[], sheets:[], skipped:{section:0,total:0,other:0}, prefilled:0};
+  names.forEach(function(name){
+    var ws=wb.Sheets[name];
+    var info={name:name, count:0, headerFound:false};
+    out.sheets.push(info);
+    if(!ws) return;
+    var rows=XLSX.utils.sheet_to_json(ws,{header:1, defval:'', raw:true, blankrows:false});
+    var h=impFindHeader(rows);
+    if(!h) return;
+    info.headerFound=true;
+
+    for(var r=h.row+1;r<rows.length;r++){
+      var row=rows[r]||[];
+      if(!row.some(function(c){ return String(c).trim()!==''; })) continue;           // blank
+
+      var sr=h.sr>-1 ? String(row[h.sr]).trim() : '';
+      var desc=String(row[h.desc]==null?'':row[h.desc]).replace(/\r\n?/g,'\n').trim();
+      var unit=String(row[h.unit]==null?'':row[h.unit]).trim();
+      var qty=impNum(row[h.qty]);
+
+      var totalRe=/^(grand\s+|sub\s*-?\s*)?total\b/i;
+      if(totalRe.test(desc) || totalRe.test(sr) || (!desc && /\btotal\b/i.test(row.join(' ')))){
+        out.skipped.total++; continue;
+      }
+      var srOk = h.sr<0 ? true : /^\d+(\.\d+)*\.?$/.test(sr);
+      var hasQtyOrUnit = (qty!==null && qty!==0) || unit!=='';
+      if(!desc || !srOk || !hasQtyOrUnit){
+        if(desc && !hasQtyOrUnit) out.skipped.section++; else out.skipped.other++;
+        continue;
+      }
+
+      var rate=h.rate>-1 ? impNum(row[h.rate]) : null;
+      if(rate===null || rate<=0){
+        rate='';
+        if(opts.rateLookup){
+          var m=opts.rateLookup(desc);
+          if(m!==null && m>0){ rate=m; out.prefilled++; }
+        }
+      }
+
+      out.items.push({
+        description: desc,
+        sacHsn: opts.sacHsn||'',
+        quantity: qty===null?'':qty,
+        uom: impMapUnit(unit),
+        rate: rate,                 // Amount = Qty × Rate is always computed by the app
+        poRef: '', poDate: ''
+      });
+      info.count++;
+    }
+  });
+  return out;
+}
+
+/* ---------- BOQ Excel import UI ---------- */
+var IMPORT_PENDING=null, IMPORT_WB=null, IMPORT_FILE='';
+
+function openExcelPicker(){ document.getElementById('xlsInput').click(); }
+
+function onExcelChosen(input){
+  var f=input.files && input.files[0];
+  input.value='';
+  if(f) importExcelFile(f);
+}
+
+function isExcelFile(f){ return /\.(xlsx|xlsm|xls)$/i.test(f && f.name || ''); }
+
+function importExcelFile(file){
+  if(!isExcelFile(file)){
+    toast('"'+(file&&file.name||'This file')+'" is not supported. Please use an Excel BOQ (.xlsx or .xls).','error');
+    return;
+  }
+  if(typeof XLSX==='undefined'){
+    toast('The Excel reader could not load. Please check your internet connection and reload the page.','error');
+    return;
+  }
+  busy('Reading '+file.name+'…');
+  var reader=new FileReader();
+  reader.onload=function(){
+    try{
+      var wb=XLSX.read(new Uint8Array(reader.result),{type:'array'});
+      busy('');
+      if(!wb.SheetNames || !wb.SheetNames.length) throw new Error('Workbook has no sheets');
+      IMPORT_WB=wb; IMPORT_FILE=file.name;
+      if(wb.SheetNames.length===1) runImportParse([wb.SheetNames[0]]);
+      else showSheetPicker();
+    }catch(e){
+      busy('');
+      console.error('Excel import failed:', e);
+      toast('Could not read "'+file.name+'". Please make sure it is a valid Excel file.','error');
+    }
+  };
+  reader.onerror=function(e){ busy(''); console.error('Excel import read error:', e); toast('Could not read the file.','error'); };
+  reader.readAsArrayBuffer(file);
+}
+
+function showSheetPicker(){
+  var names=IMPORT_WB.SheetNames;
+  var html='<h3>📥 Import from Excel</h3><p><b>'+esc(IMPORT_FILE)+'</b> has '+names.length+' sheets. Choose the sheets to import:</p>'+
+    names.map(function(nm,i){
+      var checked=/^summary$/i.test(String(nm).trim())?'':' checked';
+      return '<label class="imp-sheet" style="text-transform:none;letter-spacing:normal;font-weight:500;color:var(--text-dark);">'+
+             '<input type="checkbox" class="impChk" value="'+i+'"'+checked+'> '+esc(nm)+'</label>';
+    }).join('')+
+    '<div class="imp-actions">'+
+      '<button class="btn btn-subtle" onclick="closeImpModal()">Cancel</button>'+
+      '<button class="btn btn-primary" onclick="sheetPickerNext()">Next</button>'+
+    '</div>';
+  openImpModal(html);
+}
+
+function sheetPickerNext(){
+  var picked=[];
+  document.querySelectorAll('#impCard .impChk').forEach(function(c){ if(c.checked) picked.push(IMPORT_WB.SheetNames[+c.value]); });
+  if(!picked.length){ toast('Please select at least one sheet.','warn'); return; }
+  runImportParse(picked);
+}
+
+function runImportParse(names){
+  try{
+    var res=parseBoqSheets(IMPORT_WB, names, {sacHsn:defaultSacHsn(), rateLookup:rateMasterLookup});
+    IMPORT_PENDING=res;
+    var perSheet=res.sheets.map(function(sh){
+      return esc(sh.name)+' ('+(sh.headerFound?sh.count:'no BOQ header found')+')';
+    }).join(', ');
+    if(!res.items.length){
+      openImpModal('<h3>No items found</h3><p>No item rows were found in: '+perSheet+'.</p>'+
+        '<p class="imp-note">The header row needs "Description" (or "BOQ item") together with "Unit"/"UOM" and "Qty"/"Quantity".</p>'+
+        '<div class="imp-actions"><button class="btn btn-primary" onclick="closeImpModal()">OK</button></div>');
+      return;
+    }
+    var hasRows=hasItems();
+    openImpModal('<h3>📥 Import from Excel</h3>'+
+      '<p><b>'+res.items.length+' items</b> found from sheets: '+perSheet+'.</p>'+
+      skippedText(res.skipped, true)+
+      (res.prefilled?'<p class="imp-note">'+res.prefilled+' rate(s) prefilled from the Rate Master — please check them.</p>':'')+
+      '<p class="imp-note">Rates that are blank in the Excel stay empty for you to fill in.</p>'+
+      '<div class="imp-actions">'+
+        '<button class="btn btn-subtle" onclick="closeImpModal()">Cancel</button>'+
+        (hasRows?'<button class="btn btn-outline" onclick="applyImport(\'append\')">Append to existing rows</button>':'')+
+        '<button class="btn btn-primary" onclick="applyImport(\'replace\')">'+(hasRows?'Replace existing rows':'Import items')+'</button>'+
+      '</div>');
+  }catch(e){
+    console.error('Excel import failed:', e);
+    closeImpModal();
+    toast('Something went wrong while reading the BOQ. Please check the file and try again.','error');
+  }
+}
+
+function skippedText(sk, html){
+  var parts=[];
+  if(sk.section) parts.push(sk.section+' title/note row'+(sk.section>1?'s':''));
+  if(sk.total) parts.push(sk.total+' total row'+(sk.total>1?'s':''));
+  if(sk.other) parts.push(sk.other+' other row'+(sk.other>1?'s':''));
+  if(!parts.length) return '';
+  var t='Skipped: '+parts.join(', ')+'.';
+  return html?'<p class="imp-note">'+t+'</p>':t;
+}
+
+function applyImport(mode){
+  var res=IMPORT_PENDING;
+  if(!res) return;
+  try{
+    var items=res.items.map(function(it){ return Object.assign({}, it); });
+    if(mode==='append'){
+      LINES=LINES.filter(function(l){ return String(l.description||'').trim(); }).concat(items);
+    } else {
+      LINES=items;
+    }
+    closeImpModal();
+    render();   // same row structure as "Add Blank Row"; totals recalc live
+
+    var box=document.getElementById('lineItemsBox');
+    if(box) box.scrollIntoView({behavior:'smooth', block:'start'});
+    setTimeout(function(){
+      for(var i=0;i<LINES.length;i++){
+        if(String(LINES[i].rate)==='' || n(LINES[i].rate)===0){
+          var el=document.querySelector('#tbody input[data-rate="'+i+'"]');
+          if(el){ el.focus(); break; }
+        }
+      }
+    },400);
+
+    var sk=skippedText(res.skipped,false);
+    toast('Imported '+items.length+' item'+(items.length>1?'s':'')+' from Excel.'+(sk?'\n⚠ '+sk:''), sk?'warn':'ok');
+  }catch(e){
+    console.error('Applying Excel import failed:', e);
+    toast('Could not add the imported items. Please try again.','error');
+  }
+  IMPORT_PENDING=null;
+}
+
+/** HSN/SAC for imported rows: the one already used in this quotation, otherwise blank. */
+function defaultSacHsn(){
+  var count={}, best='', max=0;
+  LINES.forEach(function(l){
+    if(!String(l.description||'').trim()) return;
+    var v=String(l.sacHsn||'').trim();
+    if(!v) return;
+    count[v]=(count[v]||0)+1;
+    if(count[v]>max){ max=count[v]; best=v; }
+  });
+  return best;
+}
+
+/** Close match against the Rate Master (same customer's rate card first). Returns a rate or null. */
+function rateMasterLookup(desc){
+  if(!BOOT || !BOOT.items || !BOOT.items.length) return null;
+  var toks=function(s){ return impNorm(s).replace(/[^a-z0-9 ]/g,' ').split(' ').filter(function(w){ return w.length>2; }); };
+  var a=toks(desc);
+  if(!a.length) return null;
+  var aSet={}; a.forEach(function(w){ aSet[w]=1; });
+  var aKey=Object.keys(aSet).sort().join(' ');
+  var cust=impNorm(document.getElementById('custName').value);
+  var best=null, bestScore=0;
+  BOOT.items.forEach(function(it){
+    if(!(n(it.rate)>0)) return;
+    var b=toks(it.description);
+    if(!b.length) return;
+    var bSet={}; b.forEach(function(w){ bSet[w]=1; });
+    var inter=0, uni=Object.keys(aSet).length;
+    Object.keys(bSet).forEach(function(w){ if(aSet[w]) inter++; else uni++; });
+    var score=(Object.keys(bSet).sort().join(' ')===aKey)?1:inter/uni;
+    if(it.company && cust && cust.indexOf(impNorm(it.company))===0) score+=0.001;   // tie-break to the customer's rate card
+    if(score>bestScore){ bestScore=score; best=it; }
+  });
+  return (best && bestScore>=0.85)?n(best.rate):null;
+}
+
+function openImpModal(html){
+  document.getElementById('impCard').innerHTML=html;
+  document.getElementById('impModal').style.display='flex';
+}
+function closeImpModal(){
+  document.getElementById('impModal').style.display='none';
+  document.getElementById('impCard').innerHTML='';
+}
+
+var toastTimer=null;
+function toast(msg, kind){
+  var el=document.getElementById('toast');
+  el.className=kind||'ok';
+  el.textContent=msg;
+  el.style.display='block';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){ el.style.display='none'; }, kind==='error'?9000:6000);
+}
+
+/* Drag & drop an Excel file anywhere on the page (the Attachments file box keeps its own behaviour) */
+(function(){
+  var depth=0;
+  var hint=function(on){ var h=document.getElementById('dropHint'); if(h) h.style.display=on?'flex':'none'; };
+  var hasFiles=function(e){ return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types||[],'Files')>-1; };
+  var isAttachBox=function(e){ return e.target && e.target.id==='files'; };
+  document.addEventListener('dragenter',function(e){ if(hasFiles(e) && !isAttachBox(e)){ depth++; hint(true); } });
+  document.addEventListener('dragleave',function(e){ if(hasFiles(e)){ depth=Math.max(0,depth-1); if(!depth) hint(false); } });
+  document.addEventListener('dragover',function(e){ if(hasFiles(e) && !isAttachBox(e)) e.preventDefault(); });
+  document.addEventListener('drop',function(e){
+    depth=0; hint(false);
+    if(isAttachBox(e) || !hasFiles(e)) return;
+    e.preventDefault();
+    var f=e.dataTransfer.files && e.dataTransfer.files[0];
+    if(f) importExcelFile(f);
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape' && document.getElementById('impModal').style.display==='flex') closeImpModal();
+  });
+})();
+
+// Saved Quotations: select on mousedown anywhere on a result row (fires before the input blurs).
+// PDF / XLSX links inside a row keep their normal behaviour.
+(function(){
+  var hitsEl=document.getElementById('hits');
+  if(!hitsEl) return;
+  hitsEl.addEventListener('mousedown',function(e){
+    if(e.button!==0) return;
+    var t=e.target;
+    // #region agent log
+    dbg('C','Index.html:hits-mousedown','mousedown on hits',{targetTag:t&&t.tagName,isLink:!!(t&&t.closest&&t.closest('a')),rowFound:!!(t&&t.closest&&t.closest('.hit-row'))});
+    // #endregion
+    if(t.closest && t.closest('a')) return;
+    var row=t.closest ? t.closest('.hit-row') : null;
+    if(!row) return;
+    e.preventDefault();
+    openHit(parseInt(row.getAttribute('data-i'),10));
+  });
+})();
+
+// Close dropdowns when clicking outside
+document.addEventListener('click',function(e){
+  // 1. Rate Master results
+  if(!e.target.closest||!e.target.closest('.search-box-wrapper')) {
+    var res = document.getElementById('results');
+    if(res) res.style.display='none';
+  }
+  // 2. Saved Quotations hits
+  var hits = document.getElementById('hits');
+  if(hits && hits.style.display==='block'){
+    var sInput = document.getElementById('qSearch');
+    var sBtn = document.getElementById('btnToggleSearch');
+    if(e.target !== sInput && sBtn && !sBtn.contains(e.target) && !hits.contains(e.target)){
+      hits.style.display='none';
+      var ico = document.getElementById('arrowIco');
+      if(ico) ico.textContent='▼';
+    }
+  }
+  // 3. Customer Key hits
+  var custBox = document.getElementById('custHits');
+  if(custBox && custBox.style.display==='block'){
+    var cInput = document.getElementById('custKey');
+    var cBtn = document.getElementById('btnToggleCust');
+    if(e.target !== cInput && cBtn && !cBtn.contains(e.target) && !custBox.contains(e.target)){
+      custBox.style.display='none';
+      var cIco = document.getElementById('custArrowIco');
+      if(cIco) cIco.textContent='▼';
+    }
+  }
+});
+</script>
+</body>
+</html>
